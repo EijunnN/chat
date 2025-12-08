@@ -2,67 +2,39 @@
 
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
-import { Button } from "@base-ui-components/react/button";
 
 export default function ChatPage() {
   return (
-    <div className="h-screen flex">
+    <div className="h-full flex w-full">
       <SignedIn>
-        <div className="w-96 border-r border-border">
+        <div className="w-80 md:w-96 border-r border-border h-full bg-background flex-shrink-0">
           <ChatRoomList />
         </div>
-        <div className="flex-1 flex items-center justify-center bg-muted">
-          <div className="text-center">
-            <svg
-              className="w-24 h-24 text-muted-foreground mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Select a chat room
+        <div className="flex-1 hidden md:flex items-center justify-center bg-secondary/30">
+          <div className="text-center p-8 max-w-md border border-border bg-background shadow-[4px_4px_0px_0px_var(--color-border)]">
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-4">
+              Select a Frequency
             </h2>
-            <p className="text-muted-foreground">
-              Choose a chat room from the list to start messaging
+            <p className="text-muted-foreground font-serif italic">
+              Choose a channel from the directory on the left to begin transmission.
             </p>
           </div>
         </div>
       </SignedIn>
 
       <SignedOut>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto p-8">
-            <svg
-              className="w-24 h-24 text-muted-foreground mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Sign in to chat
+        <div className="flex-1 flex items-center justify-center bg-secondary/30">
+          <div className="text-center max-w-md mx-auto p-12 border border-border bg-background shadow-[4px_4px_0px_0px_var(--color-border)]">
+            <h2 className="text-3xl font-serif font-bold text-foreground mb-4">
+              Restricted Area
             </h2>
-            <p className="text-muted-foreground mb-6">
-              Connect with others in real-time. Sign in or create an account to
-              get started.
+            <p className="text-muted-foreground mb-8 font-serif italic">
+              Credentials are required to access the communication logs.
             </p>
             <SignInButton mode="modal">
-              <Button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-colors">
-                Sign In
-              </Button>
+              <button className="px-8 py-3 bg-foreground text-background text-sm font-sans uppercase tracking-widest hover:opacity-90">
+                Present Credentials
+              </button>
             </SignInButton>
           </div>
         </div>

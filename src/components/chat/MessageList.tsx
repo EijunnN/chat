@@ -13,26 +13,23 @@ interface MessageListProps {
 export function MessageList({ messages, currentUserId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   if (!messages || messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-muted-foreground text-center">
-          No messages yet. Start the conversation!
-        </p>
+      <div className="flex-1 flex items-center justify-center p-8 opacity-50">
+        <div className="text-center font-serif italic">
+          <p>The page is blank.</p>
+          <p className="text-sm mt-1">Be the first to write.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+    <div className="flex-1 overflow-y-auto p-6 md:p-8 md:pr-12 space-y-8">
       {messages.map((message) => (
         <Message
           key={message.$jazz.id}

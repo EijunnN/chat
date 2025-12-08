@@ -5,6 +5,7 @@ import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import { useUser } from "@clerk/nextjs";
 import type { InstanceOfSchema } from "jazz-tools";
+import { useRouter } from "next/navigation";
 
 interface ChatWindowProps {
   chatRoom: InstanceOfSchema<typeof ChatRoom>;
@@ -12,39 +13,35 @@ interface ChatWindowProps {
 
 export function ChatWindow({ chatRoom }: ChatWindowProps) {
   const { user } = useUser();
+  const router = useRouter();
 
-  if (!user) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-muted-foreground">Please sign in to view messages</p>
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      {/* Chat header */}
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
-              {chatRoom.name}
-            </h2>
+    <div className="flex-1 flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border flex justify-between items-start bg-background z-10">
+         <div>
+            <button 
+               onClick={() => router.push('/chat')}
+               className="md:hidden text-xs font-sans uppercase tracking-widest text-muted-foreground mb-2"
+            >
+               &larr; Back to Directory
+            </button>
+            <h1 className="text-3xl font-serif font-bold text-foreground">
+               {chatRoom.name}
+            </h1>
+            <div className="flex gap-4 mt-2 text-xs font-sans uppercase tracking-widest text-muted-foreground">
+               <span>{chatRoom.participants?.length ?? 0} Voices</span>
+               <span>&bull;</span>
+               <span>{chatRoom.isPublic ? "Public Domain" : "Private Session"}</span>
+            </div>
             {chatRoom.description && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {chatRoom.description}
-              </p>
+               <p className="mt-4 text-sm font-serif italic text-foreground/80 max-w-2xl">
+                  {chatRoom.description}
+               </p>
             )}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{chatRoom.participants?.length ?? 0} participants</span>
-            {!chatRoom.isPublic && (
-              <span className="px-2 py-1 bg-accent text-accent-foreground rounded-full text-xs">
-                Private
-              </span>
-            )}
-          </div>
-        </div>
+         </div>
       </div>
 
       {/* Messages */}
@@ -53,7 +50,7 @@ export function ChatWindow({ chatRoom }: ChatWindowProps) {
         currentUserId={user.id}
       />
 
-      {/* Message input */}
+      {/* Input */}
       <MessageInput chatRoom={chatRoom} />
     </div>
   );

@@ -6,8 +6,6 @@ import { ChatRoom, Message, PublicChatRegistry } from "@/lib/schema";
 import { useUserProfile } from "@/lib/jazz";
 import { useUser } from "@clerk/nextjs";
 import { Dialog } from "@base-ui-components/react/dialog";
-import { Input } from "@base-ui-components/react/input";
-import { Button } from "@base-ui-components/react/button";
 import type { InstanceOfSchema } from "jazz-tools";
 import { useCoState } from "jazz-tools/react";
 
@@ -35,15 +33,12 @@ export function CreateChatModal({
 
   const handleCreate = async () => {
     if (!name.trim() || !profile || !user) return;
-
     setIsCreating(true);
 
     try {
-      // Create a new group for the chat room
       const chatGroup = Group.create();
       chatGroup.makePublic("writer");
 
-      // Create the chat room
       const chatRoom = ChatRoom.create(
         {
           name: name.trim(),
@@ -58,13 +53,12 @@ export function CreateChatModal({
         chatGroup
       );
 
-      // Add welcome message
       const welcomeMessage = Message.create(
         {
-          text: `Welcome to "${name.trim()}!" This is the beginning of your conversation.`,
+          text: `The session "${name.trim()}" has commenced.`,
           author: "system",
           authorName: "System",
-          authorImage: user.imageUrl || "",
+          authorImage: "",
           timestamp: Date.now(),
           edited: false,
           attachmentURLs: [],
@@ -74,19 +68,13 @@ export function CreateChatModal({
 
       chatRoom.messages.$jazz.push(welcomeMessage);
       chatRoom.$jazz.set("lastMessageAt", Date.now());
-
-      // Add chat room to user's profile
       profile.chatRooms.$jazz.push(chatRoom);
 
-      // If public, publish into the public registry (best effort)
       if (!isPrivate && publicRegistry?.$isLoaded) {
         publicRegistry.$jazz.push(chatRoom);
       }
 
-      // Callback with the created chat room
       onChatCreated(chatRoom);
-
-      // Reset form and close modal
       setName("");
       setDescription("");
       setIsPrivate(false);
@@ -101,79 +89,68 @@ export function CreateChatModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-black bg-opacity-50 z-40" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-card text-foreground rounded-lg max-w-md w-full p-6 z-50 border border-border shadow-md">
-          <Dialog.Title className="text-xl font-semibold mb-4">
-            Create New Chat Room
+        <Dialog.Backdrop className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 transition-all duration-200" />
+        <Dialog.Popup className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background border-2 border-foreground w-full max-w-lg p-8 z-50 shadow-[8px_8px_0px_0px_var(--color-foreground)] outline-none">
+          
+          <Dialog.Title className="text-2xl font-serif font-bold mb-6 pb-2 border-b border-border">
+            Establish New Channel
           </Dialog.Title>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                Name *
+              <label className="block text-xs font-sans uppercase tracking-widest mb-2 font-bold">
+                Channel Designation
               </label>
-              <Input
-                id="name"
+              <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter chat room name"
-                maxLength={100}
-                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent bg-card text-foreground"
+                placeholder="e.g. Literary Discussion"
+                className="w-full bg-secondary/30 border border-border px-4 py-3 focus:border-foreground outline-none font-serif transition-colors"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-foreground mb-1"
-              >
-                Description
+              <label className="block text-xs font-sans uppercase tracking-widest mb-2 font-bold">
+                Brief
               </label>
               <textarea
-                id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What's this chat about?"
+                placeholder="Purpose of this channel..."
                 rows={3}
-                maxLength={300}
-                className="w-full px-3 py-2 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent bg-card text-foreground"
+                className="w-full bg-secondary/30 border border-border px-4 py-3 resize-none focus:border-foreground outline-none font-serif transition-colors"
               />
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <input
                 id="private"
                 type="checkbox"
                 checked={isPrivate}
                 onChange={(e) => setIsPrivate(e.target.checked)}
-                className="mr-2"
+                className="w-4 h-4 border border-foreground rounded-none accent-foreground"
               />
-              <label htmlFor="private" className="text-sm text-foreground">
-                Private chat room (only invited users can join)
+              <label htmlFor="private" className="text-sm font-serif italic text-muted-foreground select-none">
+                Make this a private session
               </label>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-6">
-            <Button
-              type="button"
+          <div className="flex justify-end gap-4 mt-8 pt-4 border-t border-border">
+            <button
               onClick={onClose}
               disabled={isCreating}
-              className="px-4 py-2 text-foreground hover:bg-muted rounded-lg transition-colors"
+              className="px-6 py-2 text-xs font-sans uppercase tracking-widest hover:underline underline-offset-4"
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
+              Discard
+            </button>
+            <button
               onClick={handleCreate}
               disabled={!name.trim() || isCreating}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-2 bg-foreground text-background text-xs font-sans uppercase tracking-widest hover:opacity-90 disabled:opacity-50"
             >
-              {isCreating ? "Creating..." : "Create"}
-            </Button>
+              {isCreating ? "Processing..." : "Confirm"}
+            </button>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>

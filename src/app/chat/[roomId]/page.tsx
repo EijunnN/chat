@@ -7,6 +7,7 @@ import { ID } from "jazz-tools";
 import type { InstanceOfSchema } from "jazz-tools";
 import { useAuth } from "@clerk/nextjs";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { useRouter } from "next/navigation";
 
 function ChatRoomContent({ roomId }: { roomId: string }) {
@@ -33,7 +34,6 @@ function ChatRoomContent({ roomId }: { roomId: string }) {
   const roomsLoaded = chatRooms?.$isLoaded === true;
   const isAccountReady = Boolean(profile?.$isLoaded && roomsLoaded);
   const isRoomLoaded = Boolean(chatRoom?.$isLoaded);
-  const isRoomUnavailable = isAccountReady && chatRoom === null;
 
   useEffect(() => {
     if (isSignedIn === false) {
@@ -41,14 +41,7 @@ function ChatRoomContent({ roomId }: { roomId: string }) {
     }
   }, [isSignedIn, router]);
 
-  useEffect(() => {
-    if (isRoomUnavailable) {
-      console.warn("Room not found or no access, redirecting...");
-      router.push("/chat");
-    }
-  }, [isRoomUnavailable, router]);
-
-  // AUTO-JOIN
+  // AUTO-JOIN logic
   useEffect(() => {
     if (
       isRoomLoaded &&
@@ -72,27 +65,23 @@ function ChatRoomContent({ roomId }: { roomId: string }) {
     }
   }, [isRoomLoaded, isAccountReady, chatRoom, roomsLoaded, chatRooms]);
 
-  if (!isSignedIn) {
-    return null;
-  }
-
-  if (!isRoomLoaded || !chatRoom) {
-    return (
-      <div className="h-screen flex items-center justify-center flex-col gap-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="text-muted-foreground text-sm">Joining room...</p>
-      </div>
-    );
-  }
+  if (!isSignedIn) return null;
 
   return (
-    <div className="h-screen flex">
-      <div className="hidden md:block w-96 border-r">
-        {/* Sidebar placeholder */}
+    <div className="h-full flex w-full overflow-hidden">
+      {/* Sidebar hidden on mobile when in chat */}
+      <div className="hidden md:block w-80 lg:w-96 border-r border-border h-full bg-background flex-shrink-0">
+         <ChatRoomList />
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <ChatWindow chatRoom={chatRoom as InstanceOfSchema<typeof ChatRoom>} />
+      <div className="flex-1 flex flex-col h-full relative bg-background">
+         {(!isRoomLoaded || !chatRoom) ? (
+            <div className="h-full flex items-center justify-center flex-col gap-4">
+              <div className="font-serif italic text-muted-foreground">Retrieving archives...</div>
+            </div>
+         ) : (
+            <ChatWindow chatRoom={chatRoom as InstanceOfSchema<typeof ChatRoom>} />
+         )}
       </div>
     </div>
   );
@@ -108,8 +97,8 @@ export default function ChatRoomPage({
   return (
     <Suspense
       fallback={
-        <div className="h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-full flex items-center justify-center">
+          <div className="animate-pulse bg-muted h-4 w-32"></div>
         </div>
       }
     >
