@@ -49,3 +49,6 @@ export const ChatAccount = co
       account.$jazz.set("root", {});
     }
   });
+
+// Public registry (list of chat rooms) shared across users
+export const PublicChatRegistry = co.list(ChatRoom);

@@ -2,17 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChatRoom } from "@/lib/schema";
+import { ChatRoom, PublicChatRegistry } from "@/lib/schema";
 import { useUserProfile } from "@/lib/jazz";
 import { CreateChatModal } from "./CreateChatModal";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@base-ui-components/react/button";
 import type { InstanceOfSchema } from "jazz-tools";
+import { useCoState } from "jazz-tools/react";
+import { Group } from "jazz-tools";
 
 export function ChatRoomList() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"my" | "public">("my");
+  const [creatingRegistry, setCreatingRegistry] = useState(false);
+  const [newRegistryId, setNewRegistryId] = useState<string | null>(null);
   const profile = useUserProfile();
   const router = useRouter();
+  const registryId = process.env.NEXT_PUBLIC_JAZZ_PUBLIC_REGISTRY_ID;
+  const publicRegistry = registryId
+    ? useCoState(PublicChatRegistry, registryId, { resolve: { $each: true } })
+    : undefined;
+  const registryState = publicRegistry?.$jazz.loadingState;
+  const registryAvailable = publicRegistry?.$isLoaded === true;
 
   const handleChatCreated = (chatRoom: InstanceOfSchema<typeof ChatRoom>) => {
     // Navigate to the newly created chat room
@@ -27,10 +38,50 @@ export function ChatRoomList() {
     );
   }
 
-  const chatRooms = profile.chatRooms?.filter(
+  const myRooms = profile.chatRooms?.filter(
     (room): room is InstanceOfSchema<typeof ChatRoom> =>
       Boolean(room?.$isLoaded)
   );
+  const publicRooms =
+    registryAvailable && Array.isArray(publicRegistry)
+      ? publicRegistry.filter(
+          (room): room is InstanceOfSchema<typeof ChatRoom> =>
+            Boolean(room?.$isLoaded)
+        )
+      : [];
+
+  const isMyTab = activeTab === "my";
+  const roomsToShow = isMyTab ? myRooms : publicRooms;
+
+  const handleJoinPublic = (room: InstanceOfSchema<typeof ChatRoom>) => {
+    if (profile.chatRooms.$isLoaded) {
+      const already = profile.chatRooms.some(
+        (r) => r?.$isLoaded && r.$jazz.id === room.$jazz.id
+      );
+      if (!already) {
+        profile.chatRooms.$jazz.push(room);
+      }
+    }
+    router.push(`/chat/${room.$jazz.id}`);
+  };
+
+  const handleCreateRegistry = async () => {
+    try {
+      setCreatingRegistry(true);
+      const group = Group.create();
+      group.makePublic("writer");
+      const reg = PublicChatRegistry.create([], group);
+      setNewRegistryId(reg.$jazz.id);
+      console.info(
+        "New public registry created. Set NEXT_PUBLIC_JAZZ_PUBLIC_REGISTRY_ID=",
+        reg.$jazz.id
+      );
+    } catch (err) {
+      console.error("Failed to create public registry", err);
+    } finally {
+      setCreatingRegistry(false);
+    }
+  };
 
   return (
     <>
@@ -38,9 +89,33 @@ export function ChatRoomList() {
         {/* Header */}
         <div className="border-b border-border p-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-foreground">
-              Chat Rooms
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold text-foreground">
+                Chat Rooms
+              </h1>
+              <div className="flex gap-1 rounded-md bg-muted p-1">
+                <button
+                  className={`px-3 py-1 rounded-md text-sm ${
+                    isMyTab
+                      ? "bg-card text-foreground shadow"
+                      : "text-muted-foreground"
+                  }`}
+                  onClick={() => setActiveTab("my")}
+                >
+                  My rooms
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-md text-sm ${
+                    !isMyTab
+                      ? "bg-card text-foreground shadow"
+                      : "text-muted-foreground"
+                  }`}
+                  onClick={() => setActiveTab("public")}
+                >
+                  Public
+                </button>
+              </div>
+            </div>
             <Button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-3 py-1 bg-primary text-primary-foreground text-sm rounded-lg hover:opacity-90 transition-colors"
@@ -52,9 +127,40 @@ export function ChatRoomList() {
 
         {/* Chat rooms list */}
         <div className="flex-1 overflow-y-auto">
-          {chatRooms && chatRooms.length > 0 ? (
+          {!registryId && activeTab === "public" ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <p className="text-muted-foreground mb-2">
+                Set NEXT_PUBLIC_JAZZ_PUBLIC_REGISTRY_ID to a public registry ID
+                to list rooms.
+              </p>
+              {newRegistryId && (
+                <p className="text-xs text-foreground">
+                  Nuevo registry creado: <code>{newRegistryId}</code>
+                </p>
+              )}
+            </div>
+          ) : registryState === "unavailable" && activeTab === "public" ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8 gap-3">
+              <p className="text-muted-foreground">
+                Public rooms unavailable (registry not found or inaccessible).
+              </p>
+              <Button
+                onClick={handleCreateRegistry}
+                disabled={creatingRegistry}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
+              >
+                {creatingRegistry ? "Creating..." : "Create public registry"}
+              </Button>
+              {newRegistryId && (
+                <p className="text-xs text-foreground">
+                  Nuevo registry: <code>{newRegistryId}</code> — añade a .env y
+                  recarga.
+                </p>
+              )}
+            </div>
+          ) : roomsToShow && roomsToShow.length > 0 ? (
             <div className="divide-y">
-              {chatRooms.map((room) => (
+              {roomsToShow.map((room) => (
                 <a
                   key={room.$jazz.id}
                   href={`/chat/${room.$jazz.id}`}
@@ -78,10 +184,22 @@ export function ChatRoomList() {
                         </p>
                       )}
                     </div>
-                    <div className="flex flex-col items-end ml-2">
+                    <div className="flex flex-col items-end ml-2 gap-2">
                       <span className="text-xs text-muted-foreground mt-1">
                         {room.participants?.length ?? 0} participants
                       </span>
+                      {!isMyTab && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleJoinPublic(room);
+                          }}
+                          className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90"
+                        >
+                          Join
+                        </button>
+                      )}
                     </div>
                   </div>
                 </a>

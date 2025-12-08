@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Group } from "jazz-tools";
-import { ChatRoom, Message } from "@/lib/schema";
+import { ChatRoom, Message, PublicChatRegistry } from "@/lib/schema";
 import { useUserProfile } from "@/lib/jazz";
 import { useUser } from "@clerk/nextjs";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { Input } from "@base-ui-components/react/input";
 import { Button } from "@base-ui-components/react/button";
 import type { InstanceOfSchema } from "jazz-tools";
+import { useCoState } from "jazz-tools/react";
 
 interface CreateChatModalProps {
   isOpen: boolean;
@@ -27,6 +28,10 @@ export function CreateChatModal({
   const [isCreating, setIsCreating] = useState(false);
   const profile = useUserProfile();
   const { user } = useUser();
+  const registryId = process.env.NEXT_PUBLIC_JAZZ_PUBLIC_REGISTRY_ID;
+  const publicRegistry = registryId
+    ? useCoState(PublicChatRegistry, registryId, { resolve: { $each: true } })
+    : undefined;
 
   const handleCreate = async () => {
     if (!name.trim() || !profile || !user) return;
@@ -72,6 +77,11 @@ export function CreateChatModal({
 
       // Add chat room to user's profile
       profile.chatRooms.$jazz.push(chatRoom);
+
+      // If public, publish into the public registry (best effort)
+      if (!isPrivate && publicRegistry?.$isLoaded) {
+        publicRegistry.$jazz.push(chatRoom);
+      }
 
       // Callback with the created chat room
       onChatCreated(chatRoom);
@@ -148,15 +158,16 @@ export function CreateChatModal({
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
-            <Dialog.Close>
-              <Button
-                disabled={isCreating}
-                className="px-4 py-2 text-foreground hover:bg-muted rounded-lg transition-colors"
-              >
-                Cancel
-              </Button>
-            </Dialog.Close>
             <Button
+              type="button"
+              onClick={onClose}
+              disabled={isCreating}
+              className="px-4 py-2 text-foreground hover:bg-muted rounded-lg transition-colors"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
               onClick={handleCreate}
               disabled={!name.trim() || isCreating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

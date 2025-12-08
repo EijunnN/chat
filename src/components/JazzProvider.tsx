@@ -8,7 +8,7 @@ import {
 import { ChatAccount, UserProfile, Message, ChatRoom } from "@/lib/schema";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
-import type { InstanceOfSchema } from "jazz-tools";
+
 
 // Jazz provider wrapper that integrates with Clerk authentication
 export function JazzProvider({ children }: { children: React.ReactNode }) {

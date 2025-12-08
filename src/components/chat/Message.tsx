@@ -1,7 +1,6 @@
 "use client";
 
 import { Message as MessageType } from "@/lib/schema";
-import { useAuth } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import type { InstanceOfSchema } from "jazz-tools";
 
@@ -11,8 +10,6 @@ interface MessageProps {
 }
 
 export function Message({ message, isOwn }: MessageProps) {
-  const { user } = useAuth();
-
   const formatTime = (value: number | Date | undefined) => {
     if (value === undefined || value === null) return "";
     const ms = typeof value === "number" ? value : typeof value.getTime === "function" ? value.getTime() : NaN;

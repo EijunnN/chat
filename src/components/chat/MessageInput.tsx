@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useUserProfile } from "@/lib/jazz";
 import { ChatRoom, Message } from "@/lib/schema";
-import { useAuth } from "@clerk/nextjs";
-import { useAgent } from "jazz-tools/react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import type { InstanceOfSchema } from "jazz-tools";
 
 interface MessageInputProps {
@@ -15,14 +13,17 @@ export function MessageInput({ chatRoom }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuth();
-  const agent = useAgent();
-  const owner = chatRoom.$jazz.owner ?? chatRoom.$jazz.loadedAs;
-  const messagesLoaded = chatRoom.messages.$isLoaded;
+  const { user } = useUser();
+  
+  // Verificamos si la lista de mensajes está cargada antes de permitir enviar
+  const messagesLoaded = chatRoom.messages?.$isLoaded;
 
   const handleSend = async () => {
-    const sendAs = owner ?? agent;
-    if (!message.trim() || !user || !sendAs) return;
+    // 🟢 CORRECCIÓN: Usamos explícitamente el 'owner' (Grupo) de la sala de chat.
+    // Esto asegura que el mensaje se cree en el mismo grupo compartido que la sala.
+    const chatGroup = chatRoom.$jazz.owner;
+
+    if (!message.trim() || !user || !chatGroup) return;
     if (!messagesLoaded) return;
 
     setIsSending(true);
@@ -39,13 +40,17 @@ export function MessageInput({ chatRoom }: MessageInputProps) {
           timestamp: Date.now(),
           edited: false,
         },
-        sendAs,
+        // 🟢 FORZAMOS el grupo aquí. Si esto falla, el mensaje no se envía,
+        // evitando que se creen mensajes "fantasmas" privados.
+        chatGroup
       );
 
       // Add message to chat room
+      // Usamos push directamente si es una lista CoValue
       chatRoom.messages.$jazz.push(newMessage);
 
-      // Update last message
+      // Update last message timestamp
+      // Usamos el setter de Jazz para actualizar la propiedad
       chatRoom.$jazz.set("lastMessageAt", Date.now());
 
       // Clear input
@@ -115,19 +120,19 @@ export function MessageInput({ chatRoom }: MessageInputProps) {
         <div className="flex-1">
           <textarea
             value={message}
-          onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-          className="w-full px-4 py-2 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent bg-card text-foreground"
+            className="w-full px-4 py-2 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent bg-card text-foreground"
             rows={1}
-          disabled={isSending || !messagesLoaded}
+            disabled={isSending || !messagesLoaded}
           />
         </div>
 
         <button
           type="button"
           onClick={handleSend}
-        disabled={!message.trim() || isSending || !owner || !messagesLoaded}
+          disabled={!message.trim() || isSending || !messagesLoaded}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isSending ? (

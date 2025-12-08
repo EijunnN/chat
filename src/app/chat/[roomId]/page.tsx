@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, Suspense, use } from "react";
-import { useAccount } from "jazz-tools/react";
+import { useAccount, useCoState } from "jazz-tools/react";
 import { ChatAccount, ChatRoom } from "@/lib/schema";
+import { ID } from "jazz-tools";
 import type { InstanceOfSchema } from "jazz-tools";
 import { useAuth } from "@clerk/nextjs";
 import { ChatWindow } from "@/components/chat/ChatWindow";
@@ -11,65 +12,87 @@ import { useRouter } from "next/navigation";
 function ChatRoomContent({ roomId }: { roomId: string }) {
   const { isSignedIn } = useAuth();
   const router = useRouter();
+
   const account = useAccount(ChatAccount, {
-    resolve: {
-      profile: {
-        chatRooms: {
-          $each: {
-            messages: { $each: true },
-            participants: true,
-          },
-        },
-      },
-    },
+    resolve: { profile: { chatRooms: { $each: true } } },
   });
 
-  const isProfileReady =
-    account.$isLoaded &&
-    account.profile?.$isLoaded &&
-    account.profile.chatRooms?.$isLoaded;
-  const chatRoom = isProfileReady
-    ? (account.profile.chatRooms.find(
-        (room) => room?.$isLoaded && room.$jazz.id === roomId
-      ) as InstanceOfSchema<typeof ChatRoom> | undefined)
-    : undefined;
-  const loading = isSignedIn === undefined || !isProfileReady;
+  const chatRoom = useCoState(
+    ChatRoom,
+    roomId as ID<InstanceOfSchema<typeof ChatRoom>>,
+    {
+      resolve: {
+        messages: { $each: true },
+        participants: true,
+      },
+    }
+  );
+
+  const profile = account && "profile" in account ? account.profile : undefined;
+  const chatRooms = profile?.chatRooms;
+  const roomsLoaded = chatRooms?.$isLoaded === true;
+  const isAccountReady = Boolean(profile?.$isLoaded && roomsLoaded);
+  const isRoomLoaded = Boolean(chatRoom?.$isLoaded);
+  const isRoomUnavailable = isAccountReady && chatRoom === null;
 
   useEffect(() => {
-    // Redirect if not signed in
     if (isSignedIn === false) {
       router.push("/chat");
     }
   }, [isSignedIn, router]);
 
   useEffect(() => {
-    if (!loading && !chatRoom) {
+    if (isRoomUnavailable) {
+      console.warn("Room not found or no access, redirecting...");
       router.push("/chat");
     }
-  }, [chatRoom, loading, router]);
+  }, [isRoomUnavailable, router]);
+
+  // AUTO-JOIN
+  useEffect(() => {
+    if (
+      isRoomLoaded &&
+      isAccountReady &&
+      chatRoom &&
+      roomsLoaded &&
+      chatRooms
+    ) {
+      const loadedRoom = chatRoom as InstanceOfSchema<typeof ChatRoom>;
+      const loadedRooms = chatRooms.filter(
+        (r): r is InstanceOfSchema<typeof ChatRoom> => Boolean(r?.$isLoaded)
+      );
+
+      const alreadyJoined = loadedRooms.some(
+        (r) => r.$jazz.id === loadedRoom.$jazz.id
+      );
+
+      if (!alreadyJoined) {
+        chatRooms.$jazz.push(loadedRoom);
+      }
+    }
+  }, [isRoomLoaded, isAccountReady, chatRoom, roomsLoaded, chatRooms]);
 
   if (!isSignedIn) {
-    return null; // Will redirect
+    return null;
   }
 
-  if (loading || !chatRoom) {
+  if (!isRoomLoaded || !chatRoom) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center flex-col gap-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="text-muted-foreground text-sm">Joining room...</p>
       </div>
     );
   }
 
   return (
     <div className="h-screen flex">
-      {/* Sidebar with room list - simplified on mobile */}
       <div className="hidden md:block w-96 border-r">
-        {/* You could include a mini room list here or navigation */}
+        {/* Sidebar placeholder */}
       </div>
 
-      {/* Main chat window */}
       <div className="flex-1 flex flex-col">
-        <ChatWindow chatRoom={chatRoom} />
+        <ChatWindow chatRoom={chatRoom as InstanceOfSchema<typeof ChatRoom>} />
       </div>
     </div>
   );
